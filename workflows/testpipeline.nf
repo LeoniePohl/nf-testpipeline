@@ -15,6 +15,8 @@ log.info logo + paramsSummaryLog(workflow) + citation
 
 WorkflowTestpipeline.initialise(params, log)
 
+ch_genome_fasta = Channel.fromPath(params.fasta).map { it -> [[id:it[0].simpleName], it] }.collect()
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     CONFIG FILES
@@ -51,6 +53,11 @@ include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 include { BWA_MEM                     } from '../modules/nf-core/bwa/mem/main'
 include { BWA_INDEX                   } from '../modules/nf-core/bwa/index/main'
+
+
+//
+// MODULE: Installed directly locally
+//
 include { BCFTOOLS_MPILEUP            } from '../modules/local/bcftools_mpileup.nf'
 
 
@@ -70,7 +77,7 @@ def multiqc_report = []
 workflow TESTPIPELINE {
 
     ch_versions = Channel.empty()
-    ch_genome_fasta = Channel.fromPath(params.fasta).map { it -> [[id:it[0].simpleName], it] }.collect()
+
 
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
