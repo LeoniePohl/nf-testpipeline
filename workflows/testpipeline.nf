@@ -49,6 +49,14 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check'
 include { FASTQC                      } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
+include { BWA_MEM                     } from '../modules/nf-core/bwa/mem/main'
+include { BWA_INDEX                   } from '../modules/nf-core/bwa/index/main'
+include { BCFTOOLS_MPILEUP            } from '../modules/local/bcftools_mpileup.nf'
+
+
+
+
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -62,6 +70,7 @@ def multiqc_report = []
 workflow TESTPIPELINE {
 
     ch_versions = Channel.empty()
+    ch_genome_fasta = Channel.fromPath(params.fasta).map { it -> [[id:it[0].simpleName], it] }.collect()
 
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
@@ -108,7 +117,40 @@ workflow TESTPIPELINE {
         ch_multiqc_logo.toList()
     )
     multiqc_report = MULTIQC.out.report.toList()
+
+    //
+    // MODULE: BWA_INDEX
+    //
+    BWA_INDEX(
+        ch_genome_fasta
+    )
+    ch_index = BWA_INDEX.out.index
+    ch_versions = ch_versions.mix(BWA_INDEX.out.versions)
+
+    //
+    // MODULE: BWA_MEM
+    //
+    BWA_MEM(
+        INPUT_CHECK.out.reads,
+        ch_index,
+        "true"
+    )
+    ch_bam = BWA_MEM.out.bam
+    ch_versions = ch_versions.mix(BWA_MEM.out.versions)
+
+
+    //
+    // MODULE: BCFTOOLS_MPILEUP
+    //
+    BCFTOOLS_MPILEUP(
+        ch_bam,
+        ch_genome_fasta
+    )
+    ch_versions = ch_versions.mix(BCFTOOLS_MPILEUP.out.versions)
 }
+
+
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
